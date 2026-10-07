@@ -5,10 +5,25 @@ import { render } from './renderer.js';
 import { updateStatus, setLspState } from './status.js';
 import { pushHistory } from './history.js';
 
+/* The outline renders in two places: the sidebar's Outline panel and the
+   right inspector's Symbols tab. Either one being on screen needs a refresh
+   when the active file changes. */
+export function outlineShown() {
+  return !!($('#panel-outline')?.classList.contains('active') ||
+    $('#pane-right-symbols')?.classList.contains('active') && !document.body.classList.contains('right-hidden'));
+}
+
+export function refreshOutline() { if (outlineShown()) loadOutline(); }
+
 export async function loadOutline() {
   const d = doc_();
   const el = $('#outline');
-  if (!d) { if (el) el.innerHTML = '<div class="hint">No file open.</div>'; return; }
+  const rel = $('#right-symbols-list');
+  if (!d) {
+    if (el) el.innerHTML = '<div class="hint">No file open.</div>';
+    if (rel) rel.innerHTML = '<div class="hint">No file open.</div>';
+    return;
+  }
   if (!d.outline) {
     try { d.outline = (await api('/api/outline', { path: d.path })).symbols || []; }
     catch { d.outline = []; }
@@ -29,7 +44,7 @@ export async function upgradeOutline(d) {
   if (!j.symbols || !j.symbols.length) { d.outlineLSP = false; return; }
   d.outline = j.symbols;
   d.outlineSource = j.server;
-  if (doc_() === d && $('#panel-outline')?.classList.contains('active')) drawOutline();
+  if (doc_() === d && outlineShown()) drawOutline();
 }
 
 export function drawOutline() {
